@@ -1,0 +1,14 @@
+	Ini file names
+template_folder	C:\pathtotemplatefolder
+report_template	template.html
+colocation_template	template_colocation.html
+report_online	C:\pathtoreport
+report_offline	C:\pathtoreport
+report_colocation	C:\pathtoreport
+mapSavepath	C:\pathtomap
+stations	C:\pathtostationslocationcsv
+station_data	www.toilmanetcsv
+host	hostaddress
+database	databasename
+user	username
+pw	password
