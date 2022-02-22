@@ -56,7 +56,6 @@ def Main():
     # Poll data from Vaisala API and insert to database
     # -------------------------------------------------------------------------
     dbqueries.updateDatabase(session)
-    a = 2
     
     # Query data from database (data_all) for report and map
     # -------------------------------------------------------------------------

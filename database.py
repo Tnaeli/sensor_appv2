@@ -20,8 +20,8 @@ class Location(Base):
     lat = Column(Float, nullable=False)
     lon = Column(Float, nullable=False)
     device = relationship('Sensor', backref='loc', lazy=True)
-    meas_raw = relationship('Aqt_raw', backref='loc', lazy=True)
-    meas = relationship('Aqt', backref='loc', lazy=True)
+    meas_raw = relationship('Sensor_data_raw', backref='loc', lazy=True)
+    meas = relationship('Sensor_data', backref='loc', lazy=True)
     
 
 
@@ -29,6 +29,7 @@ class Sensor(Base):
     __tablename__ = 'Sensor'
 
     id = Column(Integer, primary_key=True)
+    device = Column(String(20), nullable=False)
     name = Column(String(20), nullable=False)
     loc_id = Column(Integer, ForeignKey('Location.id'), nullable=False)
     active = Column(Integer, nullable=False)
@@ -42,30 +43,21 @@ class Sensor(Base):
     o3_slope = Column(Float, default=1)
     pm10_slope = Column(Float, default=1)
     pm25_slope = Column(Float, default=1)
+    pm1_slope = Column(Float, default=1)
     no2_bias = Column(Float, default=0)
     no_bias = Column(Float, default=0)
     co_bias = Column(Float, default=0)
     o3_bias = Column(Float, default=0)
     pm10_bias = Column(Float, default=0)
     pm25_bias = Column(Float, default=0)
-    no2_state = Column(Integer, default = 1)
-    no_state = Column(Integer, default = 1)
-    co_state = Column(Integer, default = 1)
-    o3_state = Column(Integer, default = 1)
-    pm10_state = Column(Integer, default = 1)
-    pm25_state = Column(Integer, default = 1)
-    temp_state = Column(Integer, default = 1)
-    rh_state = Column(Integer, default = 1)
-    pres_state = Column(Integer, default = 1)
-    ws_state = Column(Integer, default = 1)
-    wd_state = Column(Integer, default = 1)
-    rain_state = Column(Integer, default = 1)
-    meas_raw = relationship('Aqt_raw', backref='sensor', lazy=True)
-    meas = relationship('Aqt', backref='sensor', lazy=True)
+    pm1_bias = Column(Float, default=0)
+    meas_raw = relationship('Sensor_data_raw', backref='sensor', lazy=True)
+    meas = relationship('Sensor_data', backref='sensor', lazy=True)
+    
 
 
-class Aqt_raw(Base):
-    __tablename__ = 'Aqt_raw'
+class Sensor_data_raw(Base):
+    __tablename__ = 'Sensor_data_raw'
 
     id = Column(Integer, primary_key=True)
     timestamp = Column(DateTime, nullable=False)
@@ -75,6 +67,7 @@ class Aqt_raw(Base):
     o3 = Column(Float)
     pm10 = Column(Float)
     pm25 = Column(Float)
+    pm1 = Column(Float)
     temp = Column(Float)
     rh = Column(Float)
     pres = Column(Float)
@@ -85,8 +78,8 @@ class Aqt_raw(Base):
     sensor_id = Column(Integer, ForeignKey('Sensor.id'), nullable=False)
     
     
-class Aqt(Base):
-    __tablename__ = 'Aqt'
+class Sensor_data(Base):
+    __tablename__ = 'Sensor_data'
 
     id = Column(Integer, primary_key=True)
     loc_id = Column(Integer, ForeignKey('Location.id'), nullable=False)
@@ -98,35 +91,162 @@ class Aqt(Base):
     o3 = Column(Float)
     pm10 = Column(Float)
     pm25 = Column(Float)
+    pm1 = Column(Float)
     temp = Column(Float)
     rh = Column(Float)
     pres = Column(Float)
-    ws = Column(Float)
-    wd = Column(Float)
-    rain = Column(Float)
     no2_flag = Column(Integer, default=0)
     no_flag = Column(Integer, default=0)
     co_flag = Column(Integer, default=0)
     o3_flag = Column(Integer, default=0)
     pm10_flag = Column(Integer, default=0)
     pm25_flag = Column(Integer, default=0)
+    pm1_flag = Column(Integer, default=0)
+    temp_flag = Column(Integer, default=0)
+    rh_flag = Column(Integer, default=0)
+    pres_flag = Column(Integer, default=0)
+    
+class Sensor_data_60(Base):
+    __tablename__ = 'Sensor_data_60'
+
+    id = Column(Integer, primary_key=True)
+    loc_id = Column(Integer, ForeignKey('Location.id'), nullable=False)
+    sensor_id = Column(Integer, ForeignKey('Sensor.id'), nullable=False)
+    timestamp = Column(DateTime, nullable=False)
+    no2 = Column(Float)
+    no = Column(Float)
+    co = Column(Float)
+    o3 = Column(Float)
+    pm10 = Column(Float)
+    pm25 = Column(Float)
+    pm1 = Column(Float)
+    temp = Column(Float)
+    rh = Column(Float)
+    pres = Column(Float)
+    no2_flag = Column(Integer, default=0)
+    no_flag = Column(Integer, default=0)
+    co_flag = Column(Integer, default=0)
+    o3_flag = Column(Integer, default=0)
+    pm10_flag = Column(Integer, default=0)
+    pm25_flag = Column(Integer, default=0)
+    pm1_flag = Column(Integer, default=0)
+    temp_flag = Column(Integer, default=0)
+    rh_flag = Column(Integer, default=0)
+    pres_flag = Column(Integer, default=0)
+    
+class Sensor_data_1440(Base):
+    __tablename__ = 'Sensor_data_1440'
+
+    id = Column(Integer, primary_key=True)
+    loc_id = Column(Integer, ForeignKey('Location.id'), nullable=False)
+    sensor_id = Column(Integer, ForeignKey('Sensor.id'), nullable=False)
+    timestamp = Column(DateTime, nullable=False)
+    no2 = Column(Float)
+    no = Column(Float)
+    co = Column(Float)
+    o3 = Column(Float)
+    pm10 = Column(Float)
+    pm25 = Column(Float)
+    temp = Column(Float)
+    rh = Column(Float)
+    pres = Column(Float)
+    no2_flag = Column(Integer, default=0)
+    no_flag = Column(Integer, default=0)
+    co_flag = Column(Integer, default=0)
+    o3_flag = Column(Integer, default=0)
+    pm10_flag = Column(Integer, default=0)
+    pm25_flag = Column(Integer, default=0)
+    pm1_flag = Column(Integer, default=0)
+    temp_flag = Column(Integer, default=0)
+    rh_flag = Column(Integer, default=0)
+    pres_flag = Column(Integer, default=0)
+    
+    
+class Wxt_data(Base):
+    __tablename__ = 'Wxt_data'
+
+    id = Column(Integer, primary_key=True)
+    timestamp = Column(DateTime, nullable=False)
+    temp = Column(Float)
+    rh = Column(Float)
+    pres = Column(Float)
+    ws = Column(Float)
+    wd = Column(Float)
+    rain = Column(Float)
+    loc_id = Column(Integer, ForeignKey('Location.id'), nullable=False)
+    sensor_id = Column(Integer, ForeignKey('Sensor.id'), nullable=False)
     temp_flag = Column(Integer, default=0)
     rh_flag = Column(Integer, default=0)
     pres_flag = Column(Integer, default=0)
     ws_flag = Column(Integer, default=0)
     wd_flag = Column(Integer, default=0)
-    rain_flag = Column(Integer, default=0)
+    
+class Wxt_data_60(Base):
+    __tablename__ = 'Wxt_data_60'
+
+    id = Column(Integer, primary_key=True)
+    timestamp = Column(DateTime, nullable=False)
+    temp = Column(Float)
+    rh = Column(Float)
+    pres = Column(Float)
+    ws = Column(Float)
+    wd = Column(Float)
+    rain = Column(Float)
+    loc_id = Column(Integer, ForeignKey('Location.id'), nullable=False)
+    sensor_id = Column(Integer, ForeignKey('Sensor.id'), nullable=False)
+    temp_flag = Column(Integer, default=0)
+    rh_flag = Column(Integer, default=0)
+    pres_flag = Column(Integer, default=0)
+    ws_flag = Column(Integer, default=0)
+    wd_flag = Column(Integer, default=0)
+    
+class Wxt_data_1440(Base):
+    __tablename__ = 'Wxt_data_1440'
+
+    id = Column(Integer, primary_key=True)
+    timestamp = Column(DateTime, nullable=False)
+    temp = Column(Float)
+    rh = Column(Float)
+    pres = Column(Float)
+    ws = Column(Float)
+    wd = Column(Float)
+    rain = Column(Float)
+    loc_id = Column(Integer, ForeignKey('Location.id'), nullable=False)
+    sensor_id = Column(Integer, ForeignKey('Sensor.id'), nullable=False)
+    temp_flag = Column(Integer, default=0)
+    rh_flag = Column(Integer, default=0)
+    pres_flag = Column(Integer, default=0)
+    ws_flag = Column(Integer, default=0)
+    wd_flag = Column(Integer, default=0)
     
     
-    
-# ini = pd.read_csv('iniFile.csv', sep= '\t', index_col=0)
-# import pandas as pd
+#----------------------------
+
+# import pandas as pd   
+# ini = pd.read_csv("C:\Koodit\sensor_appv2\IniFile.csv", sep= '\t', index_col=0)
 # from sqlalchemy import create_engine
-# ini_HOPE = pd.read_csv('iniFile_HOPE.csv', sep= '\t', index_col=0)
-
 # path = f'postgresql://{ini.loc["user"][0]}:{ini.loc["pw"][0]}@{ini.loc["host"][0]}/{ini.loc["database"][0]}'
-# path = f'postgresql://{ini_HOPE.loc["user"][0]}:{ini_HOPE.loc["pw"][0]}@{ini_HOPE.loc["host"][0]}/{ini_HOPE.loc["database"][0]}'
-
 # engine = create_engine(path)
-# Aqt.__table__.create(engine)
 # Base.metadata.create_all(engine)
+
+# locations = pd.read_csv("C:\Koodit\database_files\Location.csv", header=0, sep=';')
+# sensors = pd.read_csv("C:\Koodit\database_files\Sensor_testi.csv", header=0, sep=',')
+
+# from sqlalchemy.orm import sessionmaker
+
+# def createSession(ini):
+#     path = f'postgresql://{ini.loc["user"][0]}:{ini.loc["pw"][0]}@{ini.loc["host"][0]}/{ini.loc["database"][0]}'
+#     engine = create_engine(path)
+#     Session = sessionmaker(bind=engine)
+#     session = Session()
+#     return session
+
+# session = createSession(ini)
+# locations.to_sql('Location', session.bind, index=False, if_exists=('append'))
+# sensors.to_sql('Sensor', session.bind, index=False, if_exists=('append'))
+
+
+
+#----------------------------
+
+# Aqt.__table__.create(engine)

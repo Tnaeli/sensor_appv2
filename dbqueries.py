@@ -9,7 +9,7 @@ import numpy as np
 import datetime
 import requests
 import xml.etree.ElementTree as ET
-from database import Aqt, Aqt_raw, Sensor, Location
+from database import Sensor_data, Sensor_data_raw, Sensor, Location
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -23,39 +23,15 @@ class AQTParser(object):
     table self.name.
     '''
     
-    def __init__(self, loc_id, mogserial, apiKey, sensor_id):
+    def __init__(self, loc_id, mogserial, apiKey, sensor_id, sensor_serial):
         self.loc_id = loc_id               # Table name for the database
         self.mogserial = mogserial
         self.apiKey = apiKey
-        self.sensor_id = sensor_id 
-
+        self.sensor_id = sensor_id
+        self.sensor_serial = sensor_serial
         
-    
-    #Parse data from Vaisala Beacon cloud database using API
-    def parseFromBeacon(self, startTime):
-        endTime = startTime + datetime.timedelta(days=7)
-        payload = {'d': self.mogserial, 'k': self.apiKey, 't0': startTime, 't1': endTime, 'c' : 90720}
-        
-        
-
+    def loop_xml_file(self, root):
         childNodeList = {'timestamp':[],'meastype':[],'value':[]}
-        times = []
-        times.append(datetime.datetime.now())
-        print(f'start: {times[0]}')
-        
-        try:
-            r = requests.get("http://beacon.vaisala.com/api/?", params=payload)
-            if r.status_code != 200:
-                print(datetime.datetime.now(), 'Error! Response status code:', r.status_code)
-            times.append(datetime.datetime.now())
-            print(f'Got response {(times[1] - times[0]).seconds}')
-            root = ET.fromstring(r.content)
-        except requests.exceptions.RequestException as e:  
-            print (datetime.datetime.now(), payload['d'], e)
-            
-        
-            
-
         for meas in root.iter("meas"):
             timestamp = meas.findtext("timestamp")
             meastype = meas.findtext("type")
@@ -66,36 +42,76 @@ class AQTParser(object):
             childNodeList['value'].append(value)
             
         parsedDataFrame = pd.DataFrame(childNodeList)
-        if parsedDataFrame.empty:
-            print(datetime.datetime.now(), payload['d'], 'Could not retrieve data (dataframe is empty)')
+        return parsedDataFrame
 
+        
+    
+    #Parse data from Vaisala Beacon cloud database using API
+    def parseFromBeacon(self, startTime):
+        endTime = startTime + datetime.timedelta(days=7)
+        payload = {'d': self.mogserial, 'k': self.apiKey, 't0': startTime.strftime("%Y-%m-%dT%H:%M:%S"), 
+                   't1': endTime.strftime("%Y-%m-%dT%H:%M:%S"), 'c' : 90720}
+        
+        times = []
+        times.append(datetime.datetime.now())
+        print(f'start: {times[0]}')
+        
+        try:
+            r = requests.get("http://beacon.vaisala.com/api/?", params=payload)
+            if r.status_code == 200:
+                times.append(datetime.datetime.now())
+                print(f'Got response {(times[1] - times[0]).seconds}')
+                root = ET.fromstring(r.content)
+            else:
+                print(datetime.datetime.now(), 'Error! Response status code:', r.status_code)
+        except requests.exceptions.RequestException as e:  
+            print (datetime.datetime.now(), payload['d'], e)
+            
+        
+        parsedDataFrame = self.loop_xml_file(root)
+        
+        if parsedDataFrame.empty:
+            try:
+                payload = {'d': self.mogserial, 'k': self.apiKey, 't0': startTime.strftime("%Y-%m-%dT%H:%M:%S"), 't1': 
+                           endTime.strftime("%Y-%m-%dT%H:%M:%S"), 's': f'AQT530-{self.sensor_serial}'}
+                r = requests.get("https://wxbeacon.vaisala.com/api/xml?", params=payload)
+                if r.status_code == 200:
+
+                    times.append(datetime.datetime.now())
+                    print(f'Got response {(times[1] - times[0]).seconds}')
+                    root = ET.fromstring(r.content)
+                else:
+                    print(datetime.datetime.now(), 'Error! Response status code:', r.status_code)
+            except requests.exceptions.RequestException as e:  
+                print (datetime.datetime.now(), payload['d'], e)
+            
+            parsedDataFrame = self.loop_xml_file(root)
+        
         parsedDataFrame = pd.pivot_table(parsedDataFrame, index='timestamp',
                                          columns='meastype', aggfunc='first')
         
         parsedDataFrame.columns = parsedDataFrame.columns.droplevel()
+        data = parsedDataFrame.rename(columns={'Air Hum.': 'rh', 'Air Pres.':'pres', 'Air Temp.': 'temp',
+                                        'CO': 'co', 'NO': 'no', 'NO2': 'no2', 'O3': 'o3', 'PM10': 'pm10', 
+                                        'PM2.5': 'pm25','PM1': 'pm1', 'Wind Dir.': 'wd', 'Wind Speed': 'ws', 'Rain': 'rain',
+                                        'Air temperature':'temp', 'Air pressure': 'pres', 'Relative humidity': 'rh'})
+
+        data = data.apply(pd.to_numeric, errors = 'coerce')
+        if not 'pm1' in data.columns: 
+            data['co'] = data['co'] * 1160
+            data['no'] = data['no'] * 1247
+            data['no2'] = data['no2'] * 1912
+            data['o3'] = data['o3'] * 1996
+            data['pm1'] = np.nan
+        data = data.round(2)
+            
         times.append(datetime.datetime.now())
         print(f'Parsed data {(times[2] - times[1]).seconds}')
         
-        return parsedDataFrame
+        return data
     
     #Apply correction factors and convert to ug/m3 (from ppm)
-    def editBeaconData(self, df):
-        try:
-            df.drop(labels  = 'Solar rad.', axis = 1, inplace = True)
-        except:
-            pass
-        
-        data = df.rename(columns={'Air Hum.': 'rh', 'Air Pres.':'pres', 'Air Temp.': 'temp',
-                    'CO': 'co', 'NO': 'no', 'NO2': 'no2', 'O3': 'o3', 'PM10': 'pm10', 
-                    'PM2.5': 'pm25', 'Wind Dir.': 'wd', 'Wind Speed': 'ws', 'Rain': 'rain'})
-
-        data = data.apply(pd.to_numeric, errors = 'coerce')
-        data['co'] = data['co'] * 1160
-        data['no'] = data['no'] * 1247
-        data['no2'] = data['no2'] * 1912
-        data['o3'] = data['o3'] * 1996
-        data = data.round(2)
-                
+    def editBeaconData(self, data):
         data.index = pd.to_datetime(data.index, yearfirst = True).round('T')
         data = data.resample('T', label = 'left').first()
         data = data.tz_localize(tz='UTC')
@@ -146,8 +162,8 @@ def updateDatabase(session):
                      please set old duplicate sensors inactive''')
 
     for row in sensors.itertuples():        
-        latest_timestamp = session.query(Aqt_raw).filter_by(
-            sensor_id=row.id).order_by(Aqt_raw.timestamp.desc()).limit(1).first()
+        latest_timestamp = session.query(Sensor_data_raw).filter_by(
+            sensor_id=row.id).order_by(Sensor_data_raw.timestamp.desc()).limit(1).first()
         if latest_timestamp != None:
             starttime = pd.Timestamp(latest_timestamp.timestamp)
         else:
@@ -156,16 +172,16 @@ def updateDatabase(session):
                 print(f'Measurements are not started yet. Date started is set to {starttime}')
                 continue
 
-        aqtObject = AQTParser(row.loc_id, row.mog, row.apikey, row.id)
+        aqtObject = AQTParser(row.loc_id, row.mog, row.apikey, row.id, row.serial)
         data = aqtObject.fetchAndEdit(starttime)
 
         if not data.empty:
-            data.to_sql('Aqt_raw', session.bind, index=False, if_exists=('append'))
+            data.to_sql('Sensor_data_raw', session.bind, index=False, if_exists=('append'))
             
-            components = ['no2', 'no', 'co', 'o3', 'pm10', 'pm25']
+            components = ['no2', 'no', 'co', 'o3', 'pm10', 'pm25', 'pm1']
             data = applyCorrection(sensors, data, components)
             data = flagErrorData(data)
-            data.to_sql('Aqt', session.bind, index=False, if_exists=('append'))
+            data.to_sql('Sensor_data', session.bind, index=False, if_exists=('append'))
 
     return 'Latest update {}'.format(pd.Timestamp(datetime.datetime.now()).round('T'))
 
@@ -173,11 +189,10 @@ def updateDatabase(session):
 
 def flagErrorData(data):
     df = data.copy()
-    columnsToFlag = ['no2', 'no', 'o3', 'pm10', 'pm25', 'co', 'temp', 'rh']
+    columnsToFlag = ['no2', 'no', 'o3', 'pm10', 'pm25', 'pm1', 'co', 'temp', 'rh']
     df = df.assign(**{'co_flag': 0, 'no_flag': 0, 'no2_flag': 0, 
-                      'o3_flag': 0, 'pm10_flag': 0, 'pm25_flag': 0, 
-                      'rh_flag': 0, 'temp_flag': 0, 'pres_flag': 0, 
-                      'ws_flag': 0, 'wd_flag': 0, 'rain_flag': 0})
+                      'o3_flag': 0, 'pm10_flag': 0, 'pm25_flag': 0, 'pm1_flag': 0,
+                      'rh_flag': 0, 'temp_flag': 0, 'pres_flag': 0})
     
     for column in columnsToFlag:
         if column in df.columns:
@@ -186,7 +201,7 @@ def flagErrorData(data):
             # df[[column + '_flag']] = (labels.map(labels.value_counts()) >= 40).astype(int)
             
             #find too high or low values and flag
-            if column in ['no2', 'no', 'o3', 'pm10', 'pm25']:
+            if column in ['no2', 'no', 'o3', 'pm10', 'pm25', 'pm1']:
                 highValue = 1000
                 lowValue = -5
             if column in ['co', 'rh']:
@@ -214,8 +229,8 @@ def applyCorrection(sensors, data, components):
 
 def queryBetweenDates(session, sensors, locations, date1, date2):
 
-    data = pd.read_sql(session.query(Aqt).filter(
-        Aqt.timestamp.between(date1, date2)
+    data = pd.read_sql(session.query(Sensor_data).filter(
+        Sensor_data.timestamp.between(date1, date2)
     ).statement, session.bind)
 
     if data.empty:
@@ -241,8 +256,8 @@ def queryBetweenDates(session, sensors, locations, date1, date2):
 
 def queryBetweenDates_makelankatu(session, date1, date2):
 
-    data = pd.read_sql(session.query(Aqt).filter(
-        Aqt.timestamp.between(date1, date2)
+    data = pd.read_sql(session.query(Sensor_data).filter(
+        Sensor_data.timestamp.between(date1, date2)
     ).statement, session.bind)
 
     if data.empty:
@@ -257,3 +272,10 @@ def queryBetweenDates_makelankatu(session, date1, date2):
     data = data.sort_values(by=['timestamp', 'loc_id'], ascending=[True, True])
 
     return data
+
+
+
+# test = AQTParser(0, 'N3521230', '553ced636c594f54ba9c4267e8711f61', 30, 'T0510792')
+
+# test_data = test.fetchAndEdit(pd.Timestamp('2022-02-21 08:00'))
+
