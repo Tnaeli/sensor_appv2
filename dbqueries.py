@@ -9,7 +9,7 @@ import numpy as np
 import datetime
 import requests
 import xml.etree.ElementTree as ET
-from database import Sensor_data, Sensor_data_raw, Sensor, Location, Sensor_data_60
+from database import Sensor_data, Sensor_data_raw, Sensor, Location, Sensor_data_60, Sensor_data_1440
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -239,10 +239,6 @@ def queryBetweenDates(session, sensors, locations, date1, date2):
     for  idx, row in sensors.iterrows():
         sensors.loc[idx, 'loc_id'] = locations.loc[row['loc_id'], 'name']
 
-    # if legend == 'location':
-    #     legends = dict(zip(sensors.index.tolist(), sensors.loc_id.tolist()))
-    #     data['sensor_id'] = data['sensor_id'].replace(legends)
-    # if legend == 'sensor':
     legends = dict(zip(sensors.index.tolist(), sensors.name.tolist()))
     legends_loc = dict(zip(locations.index.tolist(), locations.name.tolist()))
     data['sensor_id'] = data['sensor_id'].replace(legends)
@@ -274,12 +270,14 @@ def queryBetweenDates_makelankatu(session, date1, date2):
     return data
 
 
-def count_validity(s):
-    s_valid = s[s==0]
-    not_valid = (len(s_valid) / 60 * 100) < 75
-    return not_valid
 
 def updateDatabase_hour_avg(session):
+    
+    def count_validity(s):
+        s_valid = s[s==0]
+        not_valid = (len(s_valid) / 60 * 100) < 75
+        return not_valid
+
     # query active locations and sensors
     sensors = pd.read_sql_table('Sensor', con=session.bind)
     sensors = sensors[sensors.active == 1]
@@ -293,29 +291,109 @@ def updateDatabase_hour_avg(session):
         if latest_timestamp != None:
             starttime = pd.Timestamp(latest_timestamp.timestamp)
         else:
-            starttime = row.date_started
+            starttime = pd.Timestamp(row.date_started)
             if starttime > datetime.datetime.now(): # If start_date is in the future skip rest of the loop
                 print(f'Measurements are not started yet. Date started is set to {starttime}')
                 continue
-        print(starttime)    
+        print(starttime)
+        end_time = pd.Timestamp(datetime.datetime.now()).floor('H') - datetime.timedelta(minutes=1)
+        if end_time < starttime:
+            print('No new data for hourly average calculation')
+            continue
+        
         new_values = pd.read_sql(session.query(Sensor_data).filter(
-                                Sensor_data.timestamp >= starttime,
+                                Sensor_data.timestamp.between(starttime, end_time),
                                 Sensor_data.sensor_id == row.id).order_by(
                                     Sensor_data.timestamp).statement, session.bind)
+        if not new_values.empty:
+                                    
+            new_values = new_values.fillna(value=np.nan)
+            new_values.index = pd.to_datetime(new_values['timestamp'])
+            new_values.drop(['id', 'timestamp', 'loc_id', 'sensor_id'], axis=1, inplace=True)
+            new_values_flags = new_values.filter(like='flag')
+            new_values = new_values[['no2', 'no', 'o3', 'pm10', 'pm25', 'pm1', 'co', 'temp', 'rh', 'pres']]
+            
+            new_values = new_values.resample('H', label='right').mean().round(2)
+            new_values_flags = new_values_flags.resample('H', label='right').apply(count_validity)
+            new_values = pd.concat([new_values, new_values_flags.astype(int)], axis=1)
+            new_values['loc_id'] = row.loc_id
+            new_values['sensor_id'] = row.id
+            new_values = new_values.reset_index()
+            new_values.to_sql('Sensor_data_60', session.bind, index=False, if_exists=('append'))
+        else:
+            print('No new data found for hourly average calculation')
+        
+        
+def updateDatabase_day_avg(session):
+    
+    def count_validity(s):
+        s_valid = s[s==0]
+        not_valid = (len(s_valid) / 24 * 100) < 75
+        return not_valid
+
+    # query active locations and sensors
+    sensors = pd.read_sql_table('Sensor', con=session.bind)
+    sensors = sensors[sensors.active == 1]
+    if (sensors.serial.value_counts() > 1).any():
+        return print(''''Warning! Found 2 or more sensors active with matching serials,
+                     please set old duplicate sensors inactive''')
+
+    for row in sensors.itertuples():        
+        latest_timestamp = session.query(Sensor_data_1440).filter_by(
+            sensor_id=row.id).order_by(Sensor_data_1440.timestamp.desc()).limit(1).first()
+        if latest_timestamp != None:
+            starttime = pd.Timestamp(latest_timestamp.timestamp) + datetime.timedelta(minutes=1)
+        else:
+            starttime = pd.Timestamp(row.date_started)
+            if starttime > datetime.datetime.now(): # If start_date is in the future skip rest of the loop
+                print(f'Measurements are not started yet. Date started is set to {starttime}')
+                continue
+        print(f'start: {starttime}')
+        
+        end_time = pd.Timestamp(datetime.datetime.now()).floor('D')
+        print(f'end : {end_time}')
+        if (end_time - datetime.timedelta(days=1)) < starttime:
+            print('No new data for day average calculation')
+            continue
+        
+        new_values = pd.read_sql(session.query(Sensor_data_60).filter(
+                                Sensor_data_60.timestamp.between(starttime, end_time),
+                                Sensor_data_60.sensor_id == row.id).order_by(
+                                    Sensor_data_60.timestamp).statement, session.bind)
+                                    
         new_values = new_values.fillna(value=np.nan)
         new_values.index = pd.to_datetime(new_values['timestamp'])
         new_values.drop(['id', 'timestamp', 'loc_id', 'sensor_id'], axis=1, inplace=True)
         new_values_flags = new_values.filter(like='flag')
         new_values = new_values[['no2', 'no', 'o3', 'pm10', 'pm25', 'pm1', 'co', 'temp', 'rh', 'pres']]
         
-        new_values = new_values.resample('H', label='right').mean().round(2)
-        new_values_flags = new_values_flags.resample('H', label='right').apply(count_validity)
+        new_values = new_values.resample('D', offset=1, label='left').mean().round(2)
+        new_values_flags = new_values_flags.resample('D', offset=1, label='left').apply(count_validity)
         new_values = pd.concat([new_values, new_values_flags.astype(int)], axis=1)
         new_values['loc_id'] = row.loc_id
         new_values['sensor_id'] = row.id
+        new_values.index = new_values.index.round('D').strftime('%Y-%m-%d')
+        
         new_values = new_values.reset_index()
-        new_values.to_sql('Sensor_data_60', session.bind, index=False, if_exists=('append'))
-    return new_values
+        new_values.to_sql('Sensor_data_1440', session.bind, index=False, if_exists=('append'))
+        # break
+    # return new_values
+
+def delete_rows_between_dates(session, date1, date2, table):
+    
+    values = session.query(table).filter(table.timestamp.between(pd.Timestamp(date1), pd.Timestamp(date2)))
+    df = pd.read_sql(values.statement, values.session.bind)
+    values.delete(synchronize_session=False)
+    session.commit()
+    print(f'{len(df)} rows deleted between {date1} and {date2}')
+
+
+# stmt = (
+#     delete(Sensor_data_60).
+#     where(Sensor_data_60.timestamp.between(pd.Timestamp('2022-02-22'), pd.Timestamp('2022-02-23')))
+# )
+
+
 
 # test = AQTParser(0, 'N3521230', '553ced636c594f54ba9c4267e8711f61', 30, 'T0510792')
 
@@ -326,7 +404,12 @@ def updateDatabase_hour_avg(session):
 
 # session = createSession(ini)
 
-# test_data = updateDatabase_hour_and_day_avg(session)
+# delete_rows_between_dates(session, '2022-02-23', '2022-02-24', Sensor_data_60)
 
+# sensors = pd.read_sql_table('Sensor', con=session.bind)
+
+# test_data = updateDatabase_day_avg(session)
 
 # test_data = test_data.reset_index()
+
+# pd.Timestamp(datetime.datetime.now()).floor('D') - datetime.timedelta(minutes=1)

@@ -66,6 +66,7 @@ def Main():
         print('No data found between given date range')
     else:
         dbqueries.updateDatabase_hour_avg(session)
+        dbqueries.updateDatabase_day_avg(session)
 
         data_colocation = data_all[data_all.sensor_id.isin(['HSYS001', 'HSYS002', 'HSYS004'])].copy()
         data_all = data_all[data_all.loc_id != 'Supersite']
@@ -91,3 +92,4 @@ def Main():
         
 Main()
 
+#3.0.783

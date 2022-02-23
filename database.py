@@ -147,6 +147,7 @@ class Sensor_data_1440(Base):
     o3 = Column(Float)
     pm10 = Column(Float)
     pm25 = Column(Float)
+    pm1 = Column(Float)
     temp = Column(Float)
     rh = Column(Float)
     pres = Column(Float)
@@ -221,31 +222,33 @@ class Wxt_data_1440(Base):
     
     
 #----------------------------
+# Luodaan tietokanta ja populoidaan sijainti ja sensoritaulukko
 
-# import pandas as pd   
-# ini = pd.read_csv("C:\Koodit\sensor_appv2\IniFile.csv", sep= '\t', index_col=0)
-# from sqlalchemy import create_engine
-# path = f'postgresql://{ini.loc["user"][0]}:{ini.loc["pw"][0]}@{ini.loc["host"][0]}/{ini.loc["database"][0]}'
-# engine = create_engine(path)
-# Base.metadata.create_all(engine)
+def create_database(locations, sensors, ini):
+    from sqlalchemy import create_engine
+    path = f'postgresql://{ini.loc["user"][0]}:{ini.loc["pw"][0]}@{ini.loc["host"][0]}/{ini.loc["database"][0]}'
+    engine = create_engine(path)
+    Base.metadata.create_all(engine)
+    
+    from sqlalchemy.orm import sessionmaker
+    
+    def createSession(ini):
+        path = f'postgresql://{ini.loc["user"][0]}:{ini.loc["pw"][0]}@{ini.loc["host"][0]}/{ini.loc["database"][0]}'
+        engine = create_engine(path)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        return session
+    
+    session = createSession(ini)
+    locations.to_sql('Location', session.bind, index=False, if_exists=('append'))
+    sensors.to_sql('Sensor', session.bind, index=False, if_exists=('append'))
 
+
+# import pandas as pd
 # locations = pd.read_csv("C:\Koodit\database_files\Location.csv", header=0, sep=';')
 # sensors = pd.read_csv("C:\Koodit\database_files\Sensor_testi.csv", header=0, sep=',')
-
-# from sqlalchemy.orm import sessionmaker
-
-# def createSession(ini):
-#     path = f'postgresql://{ini.loc["user"][0]}:{ini.loc["pw"][0]}@{ini.loc["host"][0]}/{ini.loc["database"][0]}'
-#     engine = create_engine(path)
-#     Session = sessionmaker(bind=engine)
-#     session = Session()
-#     return session
-
-# session = createSession(ini)
-# locations.to_sql('Location', session.bind, index=False, if_exists=('append'))
-# sensors.to_sql('Sensor', session.bind, index=False, if_exists=('append'))
-
-
+# ini = pd.read_csv("C:\Koodit\sensor_appv2\IniFile.csv", sep= '\t', index_col=0)
+# create_database(locations, sensors, ini)
 
 #----------------------------
 
