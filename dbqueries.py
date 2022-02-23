@@ -295,7 +295,6 @@ def updateDatabase_hour_avg(session):
             if starttime > datetime.datetime.now(): # If start_date is in the future skip rest of the loop
                 print(f'Measurements are not started yet. Date started is set to {starttime}')
                 continue
-        print(starttime)
         end_time = pd.Timestamp(datetime.datetime.now()).floor('H') - datetime.timedelta(minutes=1)
         if end_time < starttime:
             print('No new data for hourly average calculation')
@@ -348,10 +347,8 @@ def updateDatabase_day_avg(session):
             if starttime > datetime.datetime.now(): # If start_date is in the future skip rest of the loop
                 print(f'Measurements are not started yet. Date started is set to {starttime}')
                 continue
-        print(f'start: {starttime}')
         
         end_time = pd.Timestamp(datetime.datetime.now()).floor('D')
-        print(f'end : {end_time}')
         if (end_time - datetime.timedelta(days=1)) < starttime:
             print('No new data for day average calculation')
             continue
