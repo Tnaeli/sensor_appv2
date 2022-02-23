@@ -55,7 +55,7 @@ def Main():
     
     # Poll data from Vaisala API and insert to database
     # -------------------------------------------------------------------------
-    dbqueries.updateDatabase(session)
+    # dbqueries.updateDatabase(session)
     
     # Query data from database (data_all) for report and map
     # -------------------------------------------------------------------------
@@ -65,6 +65,12 @@ def Main():
     if dataframe_empty:
         print('No data found between given date range')
     else:
+        if pd.Timestamp.now().hour == 1:
+            from database import Sensor_data_60
+            date1 = pd.Timestamp.now().floor('D') - datetime.timedelta(days=1) + datetime.timedelta(minutes=1)
+            date2 = pd.Timestamp.now().floor('D') + datetime.timedelta(days=1)
+            dbqueries.delete_rows_between_dates(session, date1, date2, Sensor_data_60)
+        
         dbqueries.updateDatabase_hour_avg(session)
         dbqueries.updateDatabase_day_avg(session)
 
