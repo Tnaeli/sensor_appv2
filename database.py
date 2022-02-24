@@ -71,9 +71,6 @@ class Sensor_data_raw(Base):
     temp = Column(Float)
     rh = Column(Float)
     pres = Column(Float)
-    ws = Column(Float)
-    wd = Column(Float)
-    rain = Column(Float)
     loc_id = Column(Integer, ForeignKey('Location.id'), nullable=False)
     sensor_id = Column(Integer, ForeignKey('Sensor.id'), nullable=False)
     
