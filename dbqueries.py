@@ -281,9 +281,6 @@ def updateDatabase_hour_avg(session):
     # query active locations and sensors
     sensors = pd.read_sql_table('Sensor', con=session.bind)
     sensors = sensors[sensors.active == 1]
-    if (sensors.serial.value_counts() > 1).any():
-        return print(''''Warning! Found 2 or more sensors active with matching serials,
-                     please set old duplicate sensors inactive''')
 
     for row in sensors.itertuples():        
         latest_timestamp = session.query(Sensor_data_60).filter_by(
@@ -333,9 +330,6 @@ def updateDatabase_day_avg(session):
     # query active locations and sensors
     sensors = pd.read_sql_table('Sensor', con=session.bind)
     sensors = sensors[sensors.active == 1]
-    if (sensors.serial.value_counts() > 1).any():
-        return print(''''Warning! Found 2 or more sensors active with matching serials,
-                     please set old duplicate sensors inactive''')
 
     for row in sensors.itertuples():        
         latest_timestamp = session.query(Sensor_data_1440).filter_by(
