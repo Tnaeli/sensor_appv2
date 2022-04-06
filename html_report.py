@@ -70,7 +70,7 @@ def plotlyplot_scatter(df1, x):
     df1 = df1.melt(ignore_index=False, var_name='variable', value_name='value', id_vars=[x])
 
     fig = px.scatter(df1, x=x, y='value', facet_col='variable', color_discrete_sequence=color_map,
-                    trendline ='ols', width=1000, height=350)
+                    facet_col_wrap=4, trendline ='ols', width=1000, height=1000)
 
     fig.update_layout(legend=dict(
         orientation="h",
@@ -147,8 +147,8 @@ def create_station_graph_div(station_data, component):
     data = data.resample('D', label='left').mean().iloc[1:, :].round(1)
     data = data.dropna(how='all', axis=1)
     data_columns = {'1_pm10': 'Leppavaara','3_pm10':'PM_Tikkurila' ,'4_pm10':'Mannerheimintie' ,'5_pm10': 'Kallio','6_pm10': 'Vartiokyla',
-                '7_pm10': 'Luukki','8_pm10': 'Tikkurila','9_pm10': 'Lohja','10_pm10': 'Toolontulli','11_pm10': 'Matinkyla',
-                '12_pm10': 'Ruskeasanta','13_pm10': 'Katajanokka','14_pm10': 'Hyvinkaa','17_pm10': 'Ammassuo 2','18_pm10': 'Makelankatu',
+                '7_pm10': 'Luukki','8_pm10': 'Tikkurila','9_pm10': 'Lohja','10_pm10': 'Tapanila','11_pm10': 'P-Tapiola',
+                '12_pm10': 'Hämeenlinnanväylä','13_pm10': 'Lentokenttä','14_pm10': 'Järvenpää','17_pm10': 'Ammassuo 2','18_pm10': 'Makelankatu',
                 '20_pm10': 'Blominmaki'}
     data.rename(columns=data_columns, inplace = True)
     data_div = plotly.offline.plot(plotlyplot_bar(data), show_link=False, output_type='div')
@@ -215,7 +215,8 @@ def createReport(data_Aqt, data_path_stations, savePath, template_folder, templa
 
 
 def create_colocation_report(data_Aqt, data_path_stations, savePath, template_folder, template_name, station_id=None):
-    components = ['no2', 'no', 'o3', 'co', 'pm10', 'pm25', 'rh', 'temp']
+    # components = ['no2', 'no', 'o3', 'co', 'pm10', 'pm25', 'rh', 'temp']
+    components = ['no2','pm10', 'pm25', 'rh', 'temp']
     
     station_data = parse_station_data(data_path_stations)
     

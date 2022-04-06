@@ -97,13 +97,19 @@ class AQTParser(object):
                                         'Air temperature':'temp', 'Air pressure': 'pres', 'Relative humidity': 'rh'})
 
         data = data.apply(pd.to_numeric, errors = 'coerce')
-        if not 'pm1' in data.columns: 
-            data['co'] = data['co'] * 1160
-            data['no'] = data['no'] * 1247
-            data['no2'] = data['no2'] * 1912
-            data['o3'] = data['o3'] * 1996
-            data['pm1'] = np.nan
-        data = data.round(2)
+        if not data.empty:
+            if not 'pm1' in data.columns: 
+                data['co'] = data['co'] * 1160
+                data['no'] = data['no'] * 1247
+                data['no2'] = data['no2'] * 1912
+                data['o3'] = data['o3'] * 1996
+                data['pm1'] = np.nan
+            else: 
+                data['co'] = data['co'] * 1.160
+                data['no'] = data['no'] * 1.247
+                data['no2'] = data['no2'] * 1.912
+                data['o3'] = data['o3'] * 1.996
+            data = data.round(2)
             
         times.append(datetime.datetime.now())
         print(f'Parsed data {(times[2] - times[1]).seconds}')
@@ -133,14 +139,12 @@ class AQTParser(object):
         
         data = self.parseFromBeacon(starttime)
         if data.empty == True:
-            isEmpty = True
+            print('No data')
             return data
         else:
             data = self.editBeaconData(data)
             data['loc_id'] = self.loc_id
             data['sensor_id'] = self.sensor_id
-            
-            isEmpty = False
             
             return data
         
@@ -329,7 +333,8 @@ def updateDatabase_day_avg(session):
 
     # query active locations and sensors
     sensors = pd.read_sql_table('Sensor', con=session.bind)
-    sensors = sensors[sensors.active == 1]
+    # sensors = sensors[sensors.active == 1]
+
 
     for row in sensors.itertuples():        
         latest_timestamp = session.query(Sensor_data_1440).filter_by(

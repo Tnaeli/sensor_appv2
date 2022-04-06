@@ -76,7 +76,8 @@ def Main():
             dbqueries.updateDatabase_hour_avg(session)
         
 
-        data_colocation = data_all[data_all.sensor_id.isin(['HSYS001', 'HSYS002', 'HSYS004'])].copy()
+        data_colocation = data_all[data_all.sensor_id.isin(['HSYS001', 'HSYS002', 'HSYS004','HSYS015', 'HSYS017', 'HSYS018', 'HSYS019',
+                                                            'HSYS020', 'HSYS021', 'HSYS022','HSYS023', 'HSYS024'])].copy()
         data_all = data_all[data_all.loc_id != 'Supersite']
 
         

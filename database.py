@@ -242,9 +242,9 @@ def create_database(locations, sensors, ini):
 
 
 # import pandas as pd
-# locations = pd.read_csv("C:\Koodit\database_files\Location.csv", header=0, sep=';')
-# sensors = pd.read_csv("C:\Koodit\database_files\Sensor_testi.csv", header=0, sep=',')
-# ini = pd.read_csv("C:\Koodit\sensor_appv2\IniFile.csv", sep= '\t', index_col=0)
+# locations = pd.read_csv(r"C:\Users\Ilmanlaatu\Desktop\Sensor_network_v2\Location.csv", header=0, sep=';')
+# sensors = pd.read_csv(r"C:\Users\Ilmanlaatu\Desktop\Sensor_network_v2\Sensor.csv", header=0, sep=',')
+# ini = pd.read_csv(r"C:\Users\Ilmanlaatu\Desktop\Sensor_network_v2\IniFile.csv", sep= '\t', index_col=0)
 # create_database(locations, sensors, ini)
 
 #----------------------------
